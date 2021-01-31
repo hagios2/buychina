@@ -57,66 +57,11 @@ class AdminsController extends Controller
     }
 
 
-    public function blockShop(Merchandiser $shop)
-    {
-
-       $shop->update(['isActive' => false]);
-
-       return response()->json(['status' => 'blocked']);
-
-    }
-
-
-    public function unBlockShop(Merchandiser $shop)
-    {
-
-       $shop->update(['isActive' => true]);
-
-       return response()->json(['status' => 'unblocked']);
-
-    }
-
-
-    public function getShops()
-    {
-
-        return AdminViewShopResource::collection(Merchandiser::all());
-
-    }
-
-
-    public function ShopDetails(Merchandiser $shop)
-    {
-        return new MerchandiserResource($shop);
-    }
-
-
     public function productDetails(Product $product)
     {
 
         return new DetailedProductResource($product);
     }
-
-
-    public function deleteShop(Merchandiser $shop)
-    {
-        $products = $shop->product;
-
-        $products->map(function($product){
-
-            $this->deleteProductReviews($product);
-
-            $this->deleteProductImages($product);
-
-            $product->delete();
-
-        });
-
-        $shop->delete();
-
-        return response()->json(['status' => 'shop deleted']);
-    }
-
 
     public function deleteProduct(Product $product)
     {
@@ -156,13 +101,6 @@ class AdminsController extends Controller
     }
 
 
-    public function getShopReviews(Merchandiser $shop)
-    {
-
-        return new AdminViewShopReviewsResource(ShopReview::where('merchandiser_id', $shop->id)->paginate(20));
-
-    }
-
     public function getProductReviews(Product $product)
     {
 
@@ -172,15 +110,6 @@ class AdminsController extends Controller
 
 
     public function deleteProductReview(ProductReview $review)
-    {
-
-       $review->delete();
-
-       return response()->json(['status' => 'deleted']);
-
-    }
-
-    public function deleteShopReview(ShopReview $review)
     {
 
        $review->delete();

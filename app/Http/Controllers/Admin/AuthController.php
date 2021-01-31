@@ -2,10 +2,18 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Admin;
+use App\ApiPasswordReset;
 use App\Http\Controllers\Controller;
+use App\Jobs\ShopPasswordResetJob;
+use App\Mail\AdminPasswordResetMail;
+use App\Mail\ShopPasswordResetMail;
+use App\User;
 use Illuminate\Http\Request;
 use App\Http\Resources\AdminAuthResource;
-use Admin;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
@@ -92,33 +100,61 @@ class AuthController extends Controller
     }
 
 
-    public function sendShopResetMail(Request $request)
+    public function sendAdminResetMail(Request $request)
     {
 
         $request->validate(['email' => 'required|email']);
 
-        $shop = Merchandiser::where('email', $request->email)->first();
+        $admin = Admin::where('email', $request->email)->first();
 
-        if($shop)
+        if($admin)
         {
             $gen_token = Str::random(70);
 
             $token = ApiPasswordReset::create([
 
-                'email' => $shop->email,
+                'email' => $admin->email,
 
                 'token' => $gen_token,
 
                 'isAdminEmail' => true
             ]);
 
-            //Mail::to($client)->send(new ClientPasswordResetMail($client, $token));
-            ShopPasswordResetJob::dispatch($shop, $token);
+            Mail::to($admin)
+
+                ->queue(new AdminPasswordResetMail($admin, $token));
+
+            ShopPasswordResetJob::dispatch($admin, $token);
 
             return response()->json(['status' => 'Email sent']);
         }
 
         return response()->json(['status' => 'Email not found'], 404);
+    }
+
+    public function reset(Request $request)
+    {
+        $request->validate(['token' => 'required|min:70|max:70']);
+
+        $token = ApiPasswordReset::where([['token', $request->token], ['isAdminEmail', true]])->first();
+
+        if($token)
+        {
+            if(!$token->hasExpired)
+            {
+                $admin = Admin::where('email', $token->email)->first();
+
+                $admin->update(['password' => Hash::make($request->password)]);
+
+                $token->update(['hasExpired' => true]);
+
+                return response()->json(['status' => 'new password saved']);
+            }
+
+            return response()->json(['status' => 'Operation Aborted! Token has Expired'], 403);
+        }
+
+        return response()->json(['status' => 'Token not found']);
     }
 
     
